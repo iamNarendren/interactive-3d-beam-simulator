@@ -140,14 +140,6 @@ python -m streamlit run app.py
 
 Open the local address displayed in the terminal, usually `http://localhost:8501`.
 
----
-
-## 👥 Team Members
-
-1. **Narendran**
-2. **Mowliya**
-3. **Harsith Krishna**
-4. **Khousik**
 
 ---
 
