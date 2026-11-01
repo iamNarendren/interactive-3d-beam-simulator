@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Structural ROM Lab — FEM vs Trained ML ROM</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+ <a class="brand" href="./"><span class="brand-symbol">S/</span><span>STRUCTURAL <b>ROM LAB</b></span></a>
+ <div class="top-status"><span class="pulse"></span> EXPERIMENT READY <span class="top-divider"></span> COMPUTATIONAL MECHANICS</div>
+</header>
+<main>
+<section class="heading">
+ <div><div class="eyebrow">EXPERIMENT 01 / MOVING LOAD + LOCAL STIFFNESS LOSS</div><h1>Structural response,<br><i>at every position.</i></h1>
+ <p>Move a load across a weakened cantilever. Compare the 3D FEM reference response with a trained reduced-order machine-learning model.</p></div>
+ <div class="heading-mark"><span>01</span><small>FEM<br>→ ROM</small></div>
+</section>
+<div class="layout">
+<aside class="side panel">
+ <div class="section-title">EXPERIMENT SETUP <button id="reset" class="quiet">RESET ↺</button></div>
+ <div class="control"><label for="load">Applied load <output id="loadVal">12 kN</output></label><input id="load" type="range" min="2" max="20" value="12" step="1"><div class="ends"><span>2 kN</span><span>20 kN</span></div></div>
+ <div class="control"><label for="material">Beam material <output id="materialVal">Steel</output></label>
+ <select id="material" class="material-select"><option value="steel">Steel</option><option value="iron">Iron</option><option value="tungsten">Tungsten</option></select>
+ <div class="material-note" id="materialNote">Young’s modulus: 200 GPa</div></div>
+ <div class="control"><label for="loss">Local stiffness loss <output id="lossVal">35%</output></label><input id="loss" type="range" min="0" max="70" value="35" step="5"><div class="ends"><span>0%</span><span>70%</span></div></div>
+ <div class="control"><label for="weak">Weak-section position <output id="weakVal">62%</output></label><input id="weak" type="range" min="15" max="85" value="62"><div class="ends"><span>Support</span><span>Free end</span></div></div>
+ <div class="control"><label for="pos">Load position <output id="posVal">74%</output></label><input id="pos" type="range" min="5" max="95" value="74"><div class="ends"><span>Support</span><span>Free end</span></div><button id="animate" class="primary"><span id="animIcon">▶</span><span id="animText">Animate moving load</span></button></div>
+ <div class="control toggles"><label class="check"><input id="showUndeformed" type="checkbox" checked> Show undeformed outline</label><label class="check"><input id="showROM" type="checkbox" checked> Show trained ROM prediction</label><label class="check"><input id="showDamage" type="checkbox" checked> Show weak section</label></div>
+ <div class="note"><b>MODEL</b><span>FEM: linear elastic Euler–Bernoulli beam elements with a local EI reduction. ROM: neural network + POD basis trained on FEM snapshots.</span></div>
+</aside>
+<section class="maincol">
+ <section class="panel scene-panel">
+  <div class="panel-head"><div><div class="section-title">3D STRUCTURE</div><div class="subhead">Drag to orbit · scroll to zoom</div></div><div class="scene-legend"><span><i class="dot fem"></i> FEM beam</span><span><i class="dot rom"></i> Trained ROM</span><span><i class="dot weak"></i> Weak section</span></div></div>
+  <div id="scene" aria-label="Interactive three-dimensional beam simulation"></div>
+  <div class="scene-foot"><span>FIXED SUPPORT</span><span>FREE END →</span><span id="sceneHint">DEFORMATION SCALE: AUTO</span></div>
+ </section>
+ <section class="metrics">
+  <div class="metric"><span>FEM TIP DEFLECTION</span><strong id="femMetric">—</strong><small>Reference displacement</small></div>
+  <div class="metric"><span>ROM (ML) TIP DEFLECTION</span><strong id="romMetric">—</strong><small>Trained model prediction</small></div>
+  <div class="metric"><span>RELATIVE L2 ERROR</span><strong id="errMetric">—</strong><small>ROM vs FEM, this case</small></div>
+ </section>
+ <section class="lower">
+  <div class="panel chart"><div class="panel-head"><div><div class="section-title">DISPLACEMENT PROFILE</div><div class="subhead">Vertical displacement along beam length</div></div><span class="chart-unit">x / L</span></div><canvas id="plot"></canvas><div class="chart-legend"><span><i class="dot fem"></i> FEM</span><span><i class="dot rom"></i> ROM</span></div></div>
+  <div class="panel insight"><div class="section-title">MODEL NOTES</div><div class="steps"><div><b>01</b><span><strong>FEM reference</strong><small>Beam-element stiffness system solved for the current load and local EI.</small></span></div><div><b>02</b><span><strong>Trained ROM</strong><small>Neural network + POD basis, trained on 8,192 FEM snapshots; runs in your browser.</small></span></div><div><b>03</b><span><strong>Compare</strong><small>Error is measured against FEM for every control change and on held-out test cases.</small></span></div></div><div class="notice">Educational prototype. The ROM was tested on held-out FEM cases inside its training range (see below); it is not a structural design tool.</div></div>
+ </section>
+</section>
+</div>
+
+<section class="panel validation-panel" id="prediction-error">
+ <div class="panel-head"><div><div class="section-title">FEM vs TRAINED ROM</div><div class="subhead">Prediction error of the trained model against the FEM reference</div></div><span class="chart-unit">LIVE METRICS</span></div>
+ <div class="error-grid">
+  <div><span>Relative L2 error</span><strong id="relError">—</strong></div>
+  <div><span>RMSE</span><strong id="rmseError">—</strong></div>
+  <div><span>Maximum error</span><strong id="maxError">—</strong></div>
+  <div><span>Tip error</span><strong id="tipError">—</strong></div>
+ </div>
+ <p class="info-note" id="errContext">—</p>
+ <div class="err-split">
+  <div class="sub-panel"><div class="section-title">POINTWISE ERROR ALONG THE BEAM</div><div class="subhead">ROM − FEM displacement (mm) vs x / L</div><canvas id="errPlot"></canvas></div>
+  <div class="sub-panel"><div class="section-title">HELD-OUT TEST PERFORMANCE</div><div class="subhead">Measured on FEM cases the model never saw during training</div><div class="stat-list" id="heldoutRows"></div><p class="fine" id="modelFacts"></p></div>
+ </div>
+ <div class="speed-row"><div><span>FEM solve (this browser)</span><b id="timeFem">—</b></div><div><span>ROM prediction (this browser)</span><b id="timeRom">—</b></div><div><span>Measured live</span><b id="speedup">—</b></div></div>
+ <div class="section-title table-title">PARAMETER CHANGE CHECK — FEM vs ROM</div>
+ <div class="table-wrap"><table><thead><tr><th>Case</th><th>Load</th><th>Material</th><th>Weak zone</th><th>Load pos.</th><th>FEM tip</th><th>ROM tip</th><th>Rel. L2</th><th>RMSE</th><th>Max error</th></tr></thead><tbody id="scenarioRows"></tbody></table></div>
+ <p class="fine">Each row is rebuilt from the current controls with one change. Load and Young’s modulus rescale the response exactly (displacement ∝ P/EI for a linear-elastic beam), so those rows share the same relative error; the weak-zone and load-position rows exercise what the network actually learned.</p>
+ <div class="section-title table-title">LIMITATIONS & FUTURE SCOPE</div>
+ <div class="future-grid"><div><b>Current limitations</b><ul>
+  <li>Euler–Bernoulli cantilever only: one point load, one rectangular weak zone of fixed width (11% of the length), no shear deformation, no 3D stress, linear elastic material.</li>
+  <li>Trained only for load position 5–95%, weak-zone centre 15–85% of the length, and local stiffness loss 0–70%. The sliders are locked to this range; behaviour outside it was not tested and should not be trusted.</li>
+  <li>Fixed geometry: 48-element mesh, L = 1 m, I = 1.2×10⁻⁶ m⁴. Load and Young’s modulus are not learned — they rescale the prediction analytically, which only holds while the response stays linear.</li>
+  <li>Accuracy is not uniform: the mean held-out error is small, but the worst cases (load very close to the support, where deflections are tiny) are several times larger.</li>
+  <li>Errors are measured against this FEM model, not against experiments or a commercial solver.</li></ul></div>
+ <div><b>Future scope</b><ul>
+  <li>Add parameters (weak-zone width, several weak zones, section size, distributed and multiple loads) and retrain on a larger snapshot set.</li>
+  <li>Try Gaussian-process or ensemble models to obtain prediction uncertainty, and a physics-informed loss.</li>
+  <li>Generate snapshots from Timoshenko or 3D solid FEM, add material nonlinearity, and run mesh-convergence checks.</li>
+  <li>Validate against experimental or commercial-FEM benchmarks and report speed-ups on full 3D models.</li></ul></div></div>
+</section>
+
+<footer><span>PHYSICS-GUIDED REDUCED-ORDER ML</span><span>Interactive experiment · Not for structural design</span></footer>
+</main>
+</div>
+<script type="module" src="app.js"></script>
+</body></html>
